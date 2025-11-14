@@ -70,7 +70,7 @@ namespace RVO
 
         private int numWorkers;
 
-        private JobHandle jobHandle;
+        // private JobHandle jobHandle;
 
         private float globalTime;
         private bool disposedValue;
@@ -83,6 +83,7 @@ namespace RVO
         /// </summary>
         public Simulator()
         {
+            Debug.Log("Simulator created.");
             this.agents = new NativeList<Agent>(8, Allocator.Persistent);
             this.obstacles = new NativeList<Obstacle>(8, Allocator.Persistent);
             this.kdTree = new KdTree(0, 0);
@@ -307,8 +308,8 @@ namespace RVO
         /// </summary>
         public void EnsureCompleted()
         {
-            this.jobHandle.Complete();
-            this.jobHandle = default;
+            // this.jobHandle.Complete();
+            // this.jobHandle = default;
         }
 
         /// <summary>
@@ -316,7 +317,7 @@ namespace RVO
         /// </summary>
         public void Clear()
         {
-            this.EnsureCompleted();
+            // this.EnsureCompleted();
 
             if (this.agents.IsCreated && this.agents.Length > 0)
             {
@@ -347,7 +348,7 @@ namespace RVO
         /// </summary>
         public void DoStep()
         {
-            this.EnsureCompleted();
+            // this.EnsureCompleted();
 
             this.EnsureObstacleTree();
 
@@ -356,26 +357,33 @@ namespace RVO
             EnsureTreeCapacity(ref this.kdTree, arrayLength);
 
             // job0
-            var buildJob = new BuildJob(this.kdTree, this.agents.AsParallelReader());
-            JobHandle jobHandle0 = buildJob.Schedule();
+            // var buildJob = new BuildJob(this.kdTree, this.agents.AsParallelReader());
+            // JobHandle jobHandle0 = buildJob.Schedule();
 
-            // job1
-            var innerLoop = Mathf.Max(arrayLength / Mathf.Max(this.numWorkers, 1), 1);
-            var agentResult = new NativeArray<float2>(this.agents.Length, Allocator.TempJob);
-            var computeJob = new ComputeJob(
-                this.agents.AsParallelReader(),
-                this.obstacles.AsParallelReader(),
-                this.kdTree.AsParallelReader(),
-                this.timeStep,
-                agentResult);
-            JobHandle jobHandle1 = computeJob.Schedule(arrayLength, innerLoop, jobHandle0);
+            // // job1
+            // var innerLoop = Mathf.Max(arrayLength / Mathf.Max(this.numWorkers, 1), 1);
+            // var agentResult = new NativeArray<float2>(this.agents.Length, Allocator.TempJob);
+            // var computeJob = new ComputeJob(
+            //     this.agents.AsParallelReader(),
+            //     this.obstacles.AsParallelReader(),
+            //     this.kdTree.AsParallelReader(),
+            //     this.timeStep,
+            //     agentResult);
+            // JobHandle jobHandle1 = computeJob.Schedule(arrayLength, innerLoop, jobHandle0);
 
-            // job2
-            var updateJob = new UpdateJob(this.agents, this.timeStep, agentResult);
-            JobHandle jobHandle2 = updateJob.Schedule(arrayLength, innerLoop, jobHandle1);
-            agentResult.Dispose(jobHandle2);
+            // // job2
+            // var updateJob = new UpdateJob(this.agents, this.timeStep, agentResult);
+            // JobHandle jobHandle2 = updateJob.Schedule(arrayLength, innerLoop, jobHandle1);
+            // agentResult.Dispose(jobHandle2);
 
-            this.jobHandle = jobHandle2;
+            // this.jobHandle = jobHandle2;
+
+
+            // BuildAgentTree(ref this.kdTree, ref this.agents, this.agents.Length);
+
+
+
+
             this.globalTime += this.timeStep;
         }
 
