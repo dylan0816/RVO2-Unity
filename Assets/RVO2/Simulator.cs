@@ -110,21 +110,16 @@ namespace RVO
         /// have not been set.</returns>
         public int AddAgent(float2 position)
         {
-            unsafe
-            {
-                fixed (Agent* defaultAgentPrt = &this.defaultAgent)
-                {
-                    return this.AddAgent(
-                        position,
-                        defaultAgentPrt->neighborDist,
-                        defaultAgentPrt->maxNeighbors,
-                        defaultAgentPrt->timeHorizon,
-                        defaultAgentPrt->timeHorizonObst,
-                        defaultAgentPrt->radius,
-                        defaultAgentPrt->maxSpeed,
-                        defaultAgentPrt->velocity);
-                }
-            }
+            Agent defaultAgentPrt = default;
+            return this.AddAgent(
+                position,
+                defaultAgentPrt.neighborDist,
+                defaultAgentPrt.maxNeighbors,
+                defaultAgentPrt.timeHorizon,
+                defaultAgentPrt.timeHorizonObst,
+                defaultAgentPrt.radius,
+                defaultAgentPrt.maxSpeed,
+                defaultAgentPrt.velocity);
         }
 
         /// <summary>
@@ -379,11 +374,51 @@ namespace RVO
             // this.jobHandle = jobHandle2;
 
 
-            // BuildAgentTree(ref this.kdTree, ref this.agents, this.agents.Length);
+            BuildAgentTree(ref this.kdTree, ref this.agents, this.agents.Length);
 
+            var agentResult = new NativeArray<float2>(this.agents.Length, Allocator.TempJob);
+            var agentNeighbors = new NativeList<Agent.Pair>(8, Allocator.Temp);
+            var obstacleNeighbors = new NativeList<Agent.Pair>(8, Allocator.Temp);
+            var kdTreeReadOnly = this.kdTree.AsParallelReader();
+            for (int i = this.agents.Length - 1; i >= 0; i--)
+            {
+                agentNeighbors.Clear();
+                obstacleNeighbors.Clear();
+                var agentsLength = this.agents.Length;
+                var obstaclesLength = this.obstacles.Length;
 
+                Agent agent = this.agents[i];
+                agent.ComputeNeighbors(
+                    in i,
+                    in kdTreeReadOnly,
+                    this.agents,
+                    agentsLength,
+                    this.obstacles,
+                    obstaclesLength,
+                    ref agentNeighbors,
+                    ref obstacleNeighbors);
+                agent.ComputeNewVelocity(
+                    this.timeStep,
+                    ref this.agents,
+                    agentsLength,
+                    ref this.obstacles,
+                    obstaclesLength,
+                    ref agentNeighbors,
+                    ref obstacleNeighbors);
+                agentResult[i] = agent.newVelocity;
+            }
+            agentNeighbors.Dispose();
+            obstacleNeighbors.Dispose();
 
+            for (int i = this.agents.Length - 1; i >= 0; i--)
+            {
+                Agent agent = this.agents[i];
+                agent.newVelocity = agentResult[i];
+                agent.Update(this.timeStep);
+                this.agents[i] = agent;
+            }
 
+            agentResult.Dispose();
             this.globalTime += this.timeStep;
         }
 
@@ -987,7 +1022,7 @@ namespace RVO
 
             var left = begin;
             var right = end;
-
+            Debug.Log($"Begin: {left} , end:{right}");
             while (left < right)
             {
                 while (true)
@@ -1006,7 +1041,7 @@ namespace RVO
 
                 while (true)
                 {
-                    Agent agentRight = agents[kdTree.agentIds[right - 1]];// agents + agentIdsPtr[right - 1];
+                    Agent agentRight = agents[kdTree.agentIds[right - 1]];
                     if (right > left
                         && (isVertical ? agentRight.position.x : agentRight.position.y) >= splitValue)
                     {
@@ -1047,6 +1082,7 @@ namespace RVO
 
         private static void EnsureTreeCapacity(ref KdTree kdTree, int agentCount)
         {
+            Debug.Log("Simulator.EnsureTreeCapacity");
             if (kdTree.agentIds.Length == agentCount)
             {
                 return;
@@ -1077,6 +1113,7 @@ namespace RVO
             ref NativeList<Agent> agents,
             int agentsLength)
         {
+            Debug.Log("Simulator.BuildAgentTree");
             if (kdTree.agentIds.Length == 0)
             {
                 return;
@@ -1114,6 +1151,7 @@ namespace RVO
 
         private void EnsureObstacleTree()
         {
+            Debug.Log("Simulator.EnsureObstacleTree");
             if (this.obstacleTreeDirty)
             {
                 this.BuildObstacleTree();
