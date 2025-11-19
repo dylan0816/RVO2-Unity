@@ -95,9 +95,9 @@ namespace RVO
 
             // Add agents, specifying their start position, and store their
             // goals on the opposite side of the environment.
-            for (var i = 0; i < 5; ++i)
+            for (var i = 0; i < 10; ++i)
             {
-                for (var j = 0; j < 5; ++j)
+                for (var j = 0; j < 10; ++j)
                 {
                     var agentId = this.simulator.AddAgent(new float2(55f + (i * 10f), 55f + (j * 10f)));
                     var goal = -this.simulator.GetAgentPosition(agentId);
